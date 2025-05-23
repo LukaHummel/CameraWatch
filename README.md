@@ -1,0 +1,2 @@
+This is a PowerShell script that monitors webcam access on a Windows machine via changes in the windows registry. You then can trigger webhooks to trigger other function. I use it to trigger my "I'm busy" sign for home office. To trigger the sign I use Home Assistant.
+I tried it with events initially but didn't want to create background job handeling for the event subscriptions. This might not be the most elegant solution but it works.
