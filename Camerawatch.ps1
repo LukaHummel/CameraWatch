@@ -45,6 +45,23 @@ function Get-CameraProcesses {
     return $result
 }
 
+# Run as background job if not already running as a job
+
+if ($MyInvocation.InvocationName -ne 'powershell') {
+    # Relaunch as background job if not already running as a job
+    $jobName = "CameraWatchBackgroundJob"
+    # Check if job already exists
+    if (-not (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
+        $scriptPath = $MyInvocation.MyCommand.Definition
+        Start-Job -Name $jobName -FilePath $scriptPath -ArgumentList @($LogPath) | Out-Null
+        Write-Information "INFO: CameraWatch started as background job: $jobName"
+        exit
+    } else {
+        Write-Information "INFO: CameraWatch background job already running."
+        exit
+    }
+}
+
 # Polling loop instead of WMI events
 while ($true) {
     try {
