@@ -1,8 +1,23 @@
 <#  CameraWatch.ps1  — notify when the webcam starts or stops             #>
 param(
-    [string]$LogPath = "$env:LOCALAPPDATA\CameraWatch\CameraWatch.log"
+    [string]$LogPath = "$env:LOCALAPPDATA\CameraWatch\CameraWatch.log",
+    [string]$WebhookUrl = ""
 )
 $InformationPreference = 'Continue'
+
+# Load configuration if available
+$ConfigFile = "$env:LOCALAPPDATA\CameraWatch\config.json"
+if (Test-Path $ConfigFile) {
+    try {
+        $config = Get-Content $ConfigFile | ConvertFrom-Json
+        if (-not $WebhookUrl -and $config.WebhookUrl) {
+            $WebhookUrl = $config.WebhookUrl
+        }
+    } catch {
+        Write-Warning "Failed to load configuration: $_"
+    }
+}
+
 # Debug: Log script start
 Write-Information "DEBUG: Script started"
 
@@ -35,7 +50,7 @@ function Get-CameraProcesses {
         $props = $items | Get-ItemProperty -Name LastUsedTimeStop -ErrorAction SilentlyContinue
         Write-Information "DEBUG: Found $($props.Count) items with LastUsedTimeStop property"
         $currentActive = $props | Where-Object { $_.LastUsedTimeStop -eq 0 }
-        Write-Information "DEBUG: Found $($active.Count) active camera process registry entries"
+        Write-Information "DEBUG: Found $($currentActive.Count) active camera process registry entries"
         $result = $currentActive | ForEach-Object { $_.PSPath -replace '.*webcam\\', '' } | Sort-Object -Unique
         Write-Information "DEBUG: Active camera process names: $($result -join ', ')"
     } catch {
@@ -45,57 +60,48 @@ function Get-CameraProcesses {
     return $result
 }
 
-# Run as background job if not already running as a job
-
-if ($MyInvocation.InvocationName -ne 'powershell') {
-    # Relaunch as background job if not already running as a job
-    $jobName = "CameraWatchBackgroundJob"
-    # Check if job already exists
-    if (-not (Get-Job -Name $jobName -ErrorAction SilentlyContinue)) {
-        $scriptPath = $MyInvocation.MyCommand.Definition
-        Start-Job -Name $jobName -FilePath $scriptPath -ArgumentList @($LogPath) | Out-Null
-        Write-Information "INFO: CameraWatch started as background job: $jobName"
-        exit
-    } else {
-        Write-Information "INFO: CameraWatch background job already running."
-        exit
+function Send-WebhookNotification {
+    param(
+        [string]$Processes
+    )
+    
+    if (-not $WebhookUrl) {
+        Write-Information "DEBUG: No webhook URL configured, skipping notification"
+        return
+    }
+    
+    try {
+        $body = @{ 
+            user = $env:USERNAME
+            processes = $Processes
+        }
+        Write-Information "DEBUG: Sending POST request to $WebhookUrl"
+        Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json" -ErrorAction Stop | Out-Null
+        Write-Information "DEBUG: POST request sent successfully"
+    } catch {
+        Write-Error "ERROR: Failed to send POST request: $_"
     }
 }
 
-# Polling loop instead of WMI events
+# Main monitoring loop
+Write-Information "INFO: Starting CameraWatch monitoring loop"
+$active = @()
+
 while ($true) {
     try {
         Start-Sleep -Seconds 15
         $now = Get-CameraProcesses
         Write-Information "DEBUG: Polled active processes: $($now -join ', ')"
+        
         if (($now -join ',') -ne ($active -join ',')) {
-            if ($now) {
+            if ($now -and $now.Count -gt 0) {
                 Write-Information "START   $($now -join ', ')"
-                # Send POST request if there is an active camera process
-                try {
-                    $uri = "https://your-homeassistant-url/api/webhook/your-webhook-id"
-                    # Ensure the URI is correct and accessible
-                    $body = @{ user = $env:USERNAME; processes = ($now -join ',') }
-                    Write-Information "DEBUG: Sending POST request to $uri with body: $($body | Out-String)"
-                    Invoke-RestMethod -Uri $uri -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json" -ErrorAction Stop | Out-Null
-                    Write-Information "DEBUG: POST request sent successfully"
-                } catch {
-                    Write-Error "ERROR: Failed to send POST request: $_"
-                }
+                Send-WebhookNotification -Processes ($now -join ',')
             } else {
                 Write-Information "STOP"
-                # Only send POST if previous poll found processes and current poll found none
-                if ($active -and $active.Count -gt 0 -and (!$now -or $now.Count -eq 0)) {
-                    try {
-                        $uri = "https://your-homeassistant-url/api/webhook/your-webhook-id"
-                        # Ensure the URI is correct and accessible
-                        $body = @{ user = $env:USERNAME; processes = "" }
-                        Write-Information "DEBUG: Sending POST request to $uri with body: $($body | Out-String)"
-                        Invoke-RestMethod -Uri $uri -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json" -ErrorAction Stop | Out-Null
-                        Write-Information "DEBUG: POST request sent successfully"
-                    } catch {
-                        Write-Error "ERROR: Failed to send POST request: $_"
-                    }
+                # Only send notification if there were previously active processes
+                if ($active -and $active.Count -gt 0) {
+                    Send-WebhookNotification -Processes ""
                 }
             }
             $active = $now
