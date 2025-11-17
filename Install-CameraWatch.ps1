@@ -32,10 +32,17 @@ if (-not $isAdmin) {
 # Get the directory where this script is located
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $MainScriptPath = Join-Path $ScriptDir "Camerawatch.ps1"
+$VBSLauncherPath = Join-Path $ScriptDir "Start-CameraWatch.vbs"
 
 # Verify the main script exists
 if (-not (Test-Path $MainScriptPath)) {
     Write-Error "Cannot find Camerawatch.ps1 in $ScriptDir"
+    exit 1
+}
+
+# Verify the VBS launcher exists
+if (-not (Test-Path $VBSLauncherPath)) {
+    Write-Error "Cannot find Start-CameraWatch.vbs in $ScriptDir"
     exit 1
 }
 
@@ -73,9 +80,9 @@ if ($existingTask) {
     Unregister-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -Confirm:$false
 }
 
-# Create the scheduled task action
-$Action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$MainScriptPath`""
+# Create the scheduled task action using VBScript launcher for truly hidden execution
+$Action = New-ScheduledTaskAction -Execute "wscript.exe" `
+    -Argument "`"$VBSLauncherPath`""
 
 # Create the trigger (at logon)
 $Trigger = New-ScheduledTaskTrigger -AtLogOn
