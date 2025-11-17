@@ -84,8 +84,9 @@ if ($existingTask) {
 $Action = New-ScheduledTaskAction -Execute "wscript.exe" `
     -Argument "`"$VBSLauncherPath`""
 
-# Create the trigger (at logon)
+# Create the trigger (at logon with a small delay to ensure registry is ready)
 $Trigger = New-ScheduledTaskTrigger -AtLogOn
+$Trigger.Delay = "PT30S"  # 30 second delay after logon
 
 # Create settings for the task
 $Settings = New-ScheduledTaskSettingsSet `
@@ -95,7 +96,8 @@ $Settings = New-ScheduledTaskSettingsSet `
     -RunOnlyIfNetworkAvailable:$false `
     -DontStopOnIdleEnd `
     -RestartCount 3 `
-    -RestartInterval (New-TimeSpan -Minutes 1)
+    -RestartInterval (New-TimeSpan -Minutes 1) `
+    -ExecutionTimeLimit (New-TimeSpan -Days 0)  # No time limit - run indefinitely
 
 # Get current user principal
 $Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
@@ -124,13 +126,37 @@ try {
     # Prompt to start now
     $response = Read-Host "`nDo you want to start CameraWatch now? (Y/N)"
     if ($response -eq 'Y' -or $response -eq 'y') {
-        Start-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath
-        Write-Host "CameraWatch started successfully!" -ForegroundColor Green
-        
-        # Wait a moment and check if it's running
-        Start-Sleep -Seconds 2
-        $taskInfo = Get-ScheduledTaskInfo -TaskName $TaskName -TaskPath $TaskPath
-        Write-Host "Task Status: $($taskInfo.LastTaskResult)" -ForegroundColor Cyan
+        try {
+            Start-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath
+            Write-Host "CameraWatch task has been triggered..." -ForegroundColor Green
+            
+            # Wait for the task to start
+            Start-Sleep -Seconds 3
+            $taskInfo = Get-ScheduledTaskInfo -TaskName $TaskName -TaskPath $TaskPath
+            $taskState = (Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath).State
+            
+            Write-Host "`nTask State: $taskState" -ForegroundColor Cyan
+            Write-Host "Last Run Time: $($taskInfo.LastRunTime)" -ForegroundColor Cyan
+            Write-Host "Last Result: $($taskInfo.LastTaskResult)" -ForegroundColor Cyan
+            
+            if ($taskState -eq "Running") {
+                Write-Host "`nTask is running! Check the log file:" -ForegroundColor Green
+                Write-Host "  Get-Content `"$ConfigDir\CameraWatch.log`" -Tail 20" -ForegroundColor White
+            } else {
+                Write-Warning "Task may have exited. Checking log for errors..."
+                $logFile = Join-Path $ConfigDir "CameraWatch.log"
+                if (Test-Path $logFile) {
+                    Write-Host "`nRecent log entries:" -ForegroundColor Yellow
+                    Get-Content $logFile -Tail 10 | ForEach-Object { Write-Host "  $_" }
+                } else {
+                    Write-Warning "Log file not found. The script may have failed to start."
+                    Write-Host "`nTry running the script manually to see errors:" -ForegroundColor Cyan
+                    Write-Host "  powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$MainScriptPath`"" -ForegroundColor White
+                }
+            }
+        } catch {
+            Write-Error "Failed to start task: $_"
+        }
     }
     
 } catch {
