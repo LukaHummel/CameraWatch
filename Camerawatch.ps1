@@ -104,28 +104,29 @@ function Send-WebhookNotification {
 
 # Main monitoring loop
 Write-Log "INFO: Starting CameraWatch monitoring loop"
-$active = @()
+$activeCount = 0
 
 while ($true) {
     try {
         Start-Sleep -Seconds 15
         $now = Get-CameraProcesses
+        $nowCount = $now.Count
         Write-Log "DEBUG: Polled active processes: $($now -join ', ')"
         
-        if (($now -join ',') -ne ($active -join ',')) {
+        if (($nowCount) -ne ($activeCount)) {
             if ($now -and $now.Count -gt 0) {
                 Write-Log "START   $($now -join ', ')"
                 Send-WebhookNotification -Processes ($now -join ',') -Type "on"
             } else {
                 Write-Log "STOP"
                 # Only send notification if there were previously active processes
-                if ($active -and $active.Count -gt 0) {
+                if ($activeCount -and $activeCount -gt 0) {
                     Send-WebhookNotification -Processes "" -Type "off"
                 }
             }
-            $active = $now
+            $activeCount = $nowCount
         }
-        Write-Log "INFO: Active camera processes after poll: $($active -join ', ')"
+        Write-Log "INFO: Active camera processes after poll: $($activeCount -join ', ')"
     } catch {
         Write-Log "ERROR: Failed during polling loop: $_"
     }
