@@ -16,7 +16,9 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$WebhookUrl = ""
+    [string]$WebhookUrl = "",
+    [Parameter(Mandatory=$false)]
+    [string]$WebhookUrlSignOff = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,13 +60,17 @@ try {
     exit 1
 }
 
-# Save webhook URL to config if provided
+# Save webhook URLs to config if provided
+$config = @{}
 if ($WebhookUrl) {
-    $config = @{
-        WebhookUrl = $WebhookUrl
-    }
+    $config.WebhookUrl = $WebhookUrl
+}
+if ($WebhookUrlSignOff) {
+    $config.WebhookUrlSignOff = $WebhookUrlSignOff
+}
+if ($config.Keys.Count -gt 0) {
     $config | ConvertTo-Json | Set-Content $ConfigFile
-    Write-Host "Saved webhook URL to configuration" -ForegroundColor Green
+    Write-Host "Saved webhook URL(s) to configuration" -ForegroundColor Green
 }
 
 # Task Scheduler configuration

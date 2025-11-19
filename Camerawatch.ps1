@@ -1,8 +1,10 @@
 <#  CameraWatch.ps1  — notify when the webcam starts or stops             #>
 param(
     [string]$LogPath = "$env:LOCALAPPDATA\CameraWatch\CameraWatch.log",
-    [string]$WebhookUrl = ""
+    [string]$WebhookUrl = "",
+    [string]$WebhookUrlSignOff = ""
 )
+
 
 # Load configuration if available
 $ConfigFile = "$env:LOCALAPPDATA\CameraWatch\config.json"
@@ -11,6 +13,9 @@ if (Test-Path $ConfigFile) {
         $config = Get-Content $ConfigFile | ConvertFrom-Json
         if (-not $WebhookUrl -and $config.WebhookUrl) {
             $WebhookUrl = $config.WebhookUrl
+        }
+        if (-not $WebhookUrlSignOff -and $config.WebhookUrlSignOff) {
+            $WebhookUrlSignOff = $config.WebhookUrlSignOff
         }
     } catch {
         # Silently continue if config fails to load
@@ -71,21 +76,26 @@ function Get-CameraProcesses {
 
 function Send-WebhookNotification {
     param(
-        [string]$Processes
+        [string]$Processes,
+        [string]$Type = "on"
     )
-    
-    if (-not $WebhookUrl) {
-        Write-Log "DEBUG: No webhook URL configured, skipping notification"
+    $urlToUse = $null
+    if ($Type -eq "on") {
+        $urlToUse = $WebhookUrl
+    } elseif ($Type -eq "off") {
+        $urlToUse = $WebhookUrlSignOff
+    }
+    if (-not $urlToUse) {
+        Write-Log "DEBUG: No webhook URL configured for type '$Type', skipping notification"
         return
     }
-    
     try {
         $body = @{ 
             user = $env:USERNAME
             processes = $Processes
         }
-        Write-Log "DEBUG: Sending POST request to $WebhookUrl"
-        Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json" -ErrorAction Stop | Out-Null
+        Write-Log "DEBUG: Sending POST request to $urlToUse (type: $Type)"
+        Invoke-RestMethod -Uri $urlToUse -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json" -ErrorAction Stop | Out-Null
         Write-Log "DEBUG: POST request sent successfully"
     } catch {
         Write-Log "ERROR: Failed to send POST request: $_"
@@ -105,12 +115,12 @@ while ($true) {
         if (($now -join ',') -ne ($active -join ',')) {
             if ($now -and $now.Count -gt 0) {
                 Write-Log "START   $($now -join ', ')"
-                Send-WebhookNotification -Processes ($now -join ',')
+                Send-WebhookNotification -Processes ($now -join ',') -Type "on"
             } else {
                 Write-Log "STOP"
                 # Only send notification if there were previously active processes
                 if ($active -and $active.Count -gt 0) {
-                    Send-WebhookNotification -Processes ""
+                    Send-WebhookNotification -Processes "" -Type "off"
                 }
             }
             $active = $now
