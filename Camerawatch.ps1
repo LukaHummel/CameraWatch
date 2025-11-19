@@ -114,7 +114,7 @@ while ($true) {
         Write-Log "DEBUG: Polled active processes: $($now -join ', ')"
         
         if (($nowCount) -ne ($activeCount)) {
-            if ($now -and $now.Count -gt 0) {
+            if ($now -and $nowCount -gt 0) {
                 Write-Log "START   $($now -join ', ')"
                 Send-WebhookNotification -Processes ($now -join ',') -Type "on"
             } else {
