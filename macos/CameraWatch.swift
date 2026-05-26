@@ -6,19 +6,27 @@ struct CameraWatchConfig: Decodable {
     var webhookUrl: String?
     var webhookUrlSignOff: String?
     var pollIntervalSeconds: Int?
-    var focusSyncEnabled: Bool?
-    var focusOnShortcut: String?
-    var focusOffShortcut: String?
-    var focusShortcutTimeoutSeconds: Int?
+    var shortcutTriggersEnabled: Bool?
+    var cameraActiveShortcut: String?
+    var cameraInactiveShortcut: String?
+    var shortcutTimeoutSeconds: Int?
+    var legacyFocusSyncEnabled: Bool?
+    var legacyFocusOnShortcut: String?
+    var legacyFocusOffShortcut: String?
+    var legacyFocusShortcutTimeoutSeconds: Int?
 
     enum CodingKeys: String, CodingKey {
         case webhookUrl = "WebhookUrl"
         case webhookUrlSignOff = "WebhookUrlSignOff"
         case pollIntervalSeconds = "PollIntervalSeconds"
-        case focusSyncEnabled = "FocusSyncEnabled"
-        case focusOnShortcut = "FocusOnShortcut"
-        case focusOffShortcut = "FocusOffShortcut"
-        case focusShortcutTimeoutSeconds = "FocusShortcutTimeoutSeconds"
+        case shortcutTriggersEnabled = "ShortcutTriggersEnabled"
+        case cameraActiveShortcut = "CameraActiveShortcut"
+        case cameraInactiveShortcut = "CameraInactiveShortcut"
+        case shortcutTimeoutSeconds = "ShortcutTimeoutSeconds"
+        case legacyFocusSyncEnabled = "FocusSyncEnabled"
+        case legacyFocusOnShortcut = "FocusOnShortcut"
+        case legacyFocusOffShortcut = "FocusOffShortcut"
+        case legacyFocusShortcutTimeoutSeconds = "FocusShortcutTimeoutSeconds"
     }
 }
 
@@ -29,17 +37,17 @@ struct RuntimeOptions {
     var runOnce = false
     var dryRun = false
     var testNotification: String?
-    var testFocus: String?
+    var testShortcut: String?
 }
 
 struct Settings {
     var webhookUrl = ""
     var webhookUrlSignOff = ""
     var pollIntervalSeconds = 15
-    var focusSyncEnabled = false
-    var focusOnShortcut = "CameraWatch Focus On"
-    var focusOffShortcut = "CameraWatch Focus Off"
-    var focusShortcutTimeoutSeconds = 20
+    var shortcutTriggersEnabled = false
+    var cameraActiveShortcut = "CameraWatch Camera Active"
+    var cameraInactiveShortcut = "CameraWatch Camera Inactive"
+    var shortcutTimeoutSeconds = 20
 }
 
 final class Logger {
@@ -86,7 +94,7 @@ func usage() {
       --once                        Check camera state once and exit
       --dry-run                     Log actions without sending webhooks or running shortcuts
       --test-notification on|off    Send or log a test webhook transition
-      --test-focus on|off           Run or log a test Focus shortcut
+      --test-shortcut on|off        Run or log a test camera transition shortcut
       --help                        Show this help
     """)
 }
@@ -129,13 +137,13 @@ func parseArguments(_ args: [String]) -> RuntimeOptions {
                 exit(64)
             }
             options.testNotification = value
-        case "--test-focus":
+        case "--test-shortcut", "--test-focus":
             let value = requireValue(arg)
             guard value == "on" || value == "off" else {
-                fputs("--test-focus must be 'on' or 'off'\n", stderr)
+                fputs("\(arg) must be 'on' or 'off'\n", stderr)
                 exit(64)
             }
-            options.testFocus = value
+            options.testShortcut = value
         case "--help", "-h":
             usage()
             exit(0)
@@ -161,10 +169,18 @@ func loadSettings(options: RuntimeOptions, logger: Logger) -> Settings {
             settings.webhookUrl = config.webhookUrl ?? settings.webhookUrl
             settings.webhookUrlSignOff = config.webhookUrlSignOff ?? settings.webhookUrlSignOff
             settings.pollIntervalSeconds = config.pollIntervalSeconds ?? settings.pollIntervalSeconds
-            settings.focusSyncEnabled = config.focusSyncEnabled ?? settings.focusSyncEnabled
-            settings.focusOnShortcut = config.focusOnShortcut ?? settings.focusOnShortcut
-            settings.focusOffShortcut = config.focusOffShortcut ?? settings.focusOffShortcut
-            settings.focusShortcutTimeoutSeconds = config.focusShortcutTimeoutSeconds ?? settings.focusShortcutTimeoutSeconds
+            settings.shortcutTriggersEnabled = config.shortcutTriggersEnabled
+                ?? config.legacyFocusSyncEnabled
+                ?? settings.shortcutTriggersEnabled
+            settings.cameraActiveShortcut = config.cameraActiveShortcut
+                ?? config.legacyFocusOnShortcut
+                ?? settings.cameraActiveShortcut
+            settings.cameraInactiveShortcut = config.cameraInactiveShortcut
+                ?? config.legacyFocusOffShortcut
+                ?? settings.cameraInactiveShortcut
+            settings.shortcutTimeoutSeconds = config.shortcutTimeoutSeconds
+                ?? config.legacyFocusShortcutTimeoutSeconds
+                ?? settings.shortcutTimeoutSeconds
             logger.write("INFO", "Loaded config from \(options.configPath)")
         } catch {
             logger.write("ERROR", "Failed to load config from \(options.configPath): \(error)")
@@ -177,7 +193,7 @@ func loadSettings(options: RuntimeOptions, logger: Logger) -> Settings {
         settings.pollIntervalSeconds = pollOverride
     }
     settings.pollIntervalSeconds = max(1, settings.pollIntervalSeconds)
-    settings.focusShortcutTimeoutSeconds = max(1, settings.focusShortcutTimeoutSeconds)
+    settings.shortcutTimeoutSeconds = max(1, settings.shortcutTimeoutSeconds)
 
     return settings
 }
@@ -327,12 +343,12 @@ func sendWebhook(url: String, processes: String, type: String, dryRun: Bool, log
 
 func runShortcut(name: String, type: String, timeoutSeconds: Int, dryRun: Bool, logger: Logger) -> Bool {
     guard !name.isEmpty else {
-        logger.write("INFO", "No \(type) Focus shortcut configured; skipping Focus sync")
+        logger.write("INFO", "No \(type) Shortcut configured; skipping shortcut trigger")
         return true
     }
 
     if dryRun {
-        logger.write("INFO", "Dry run: would run \(type) Focus shortcut '\(name)'")
+        logger.write("INFO", "Dry run: would run \(type) Shortcut '\(name)'")
         return true
     }
 
@@ -347,7 +363,7 @@ func runShortcut(name: String, type: String, timeoutSeconds: Int, dryRun: Bool, 
     do {
         try process.run()
     } catch {
-        logger.write("ERROR", "Failed to start \(type) Focus shortcut '\(name)': \(error)")
+        logger.write("ERROR", "Failed to start \(type) Shortcut '\(name)': \(error)")
         return false
     }
 
@@ -359,7 +375,7 @@ func runShortcut(name: String, type: String, timeoutSeconds: Int, dryRun: Bool, 
 
     if semaphore.wait(timeout: .now() + .seconds(timeoutSeconds)) == .timedOut {
         process.terminate()
-        logger.write("ERROR", "Timed out running \(type) Focus shortcut '\(name)' after \(timeoutSeconds)s")
+        logger.write("ERROR", "Timed out running \(type) Shortcut '\(name)' after \(timeoutSeconds)s")
         return false
     }
 
@@ -367,12 +383,12 @@ func runShortcut(name: String, type: String, timeoutSeconds: Int, dryRun: Bool, 
         .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
     if process.terminationStatus == 0 {
-        logger.write("INFO", "Ran \(type) Focus shortcut '\(name)'")
+        logger.write("INFO", "Ran \(type) Shortcut '\(name)'")
         return true
     }
 
     let suffix = output.isEmpty ? "" : ": \(output)"
-    logger.write("ERROR", "Focus shortcut '\(name)' failed with exit code \(process.terminationStatus)\(suffix)")
+    logger.write("ERROR", "Shortcut '\(name)' failed with exit code \(process.terminationStatus)\(suffix)")
     return false
 }
 
@@ -389,12 +405,12 @@ func handleTransition(active: Bool, cameraNames: [String], settings: Settings, o
         logger: logger
     )
 
-    if settings.focusSyncEnabled {
-        let shortcut = active ? settings.focusOnShortcut : settings.focusOffShortcut
+    if settings.shortcutTriggersEnabled {
+        let shortcut = active ? settings.cameraActiveShortcut : settings.cameraInactiveShortcut
         _ = runShortcut(
             name: shortcut,
             type: type,
-            timeoutSeconds: settings.focusShortcutTimeoutSeconds,
+            timeoutSeconds: settings.shortcutTimeoutSeconds,
             dryRun: options.dryRun,
             logger: logger
         )
@@ -436,19 +452,19 @@ if let testNotification = options.testNotification {
     exit(0)
 }
 
-if let testFocus = options.testFocus {
-    let shortcut = testFocus == "on" ? settings.focusOnShortcut : settings.focusOffShortcut
+if let testShortcut = options.testShortcut {
+    let shortcut = testShortcut == "on" ? settings.cameraActiveShortcut : settings.cameraInactiveShortcut
     _ = runShortcut(
         name: shortcut,
-        type: testFocus,
-        timeoutSeconds: settings.focusShortcutTimeoutSeconds,
+        type: testShortcut,
+        timeoutSeconds: settings.shortcutTimeoutSeconds,
         dryRun: options.dryRun,
         logger: logger
     )
     exit(0)
 }
 
-logger.write("INFO", "Starting CameraWatch for macOS; poll interval \(settings.pollIntervalSeconds)s; Focus sync \(settings.focusSyncEnabled ? "enabled" : "disabled")")
+logger.write("INFO", "Starting CameraWatch for macOS; poll interval \(settings.pollIntervalSeconds)s; shortcut triggers \(settings.shortcutTriggersEnabled ? "enabled" : "disabled")")
 
 var wasActive = false
 var pendingWebhookTransition: Bool?

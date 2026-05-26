@@ -14,20 +14,20 @@ WEBHOOK_URL_SIGN_OFF=""
 WEBHOOK_URL_MODE="keep"
 WEBHOOK_URL_SIGN_OFF_MODE="keep"
 POLL_SECONDS="15"
-FOCUS_SYNC="false"
-FOCUS_ON_SHORTCUT="CameraWatch Focus On"
-FOCUS_OFF_SHORTCUT="CameraWatch Focus Off"
-FOCUS_TIMEOUT="20"
-FOCUS_SHORTCUT_CONFIGURED="false"
+SHORTCUT_TRIGGERS="false"
+CAMERA_ACTIVE_SHORTCUT="CameraWatch Camera Active"
+CAMERA_INACTIVE_SHORTCUT="CameraWatch Camera Inactive"
+SHORTCUT_TIMEOUT="20"
+SHORTCUT_CONFIGURED="false"
 SKIP_SHORTCUT_CHECK="false"
 START_NOW="true"
 INTERACTIVE_MODE="auto"
 HAS_SETUP_OPTIONS="false"
 POLL_CONFIGURED="false"
-FOCUS_CONFIGURED="false"
-FOCUS_ON_CONFIGURED="false"
-FOCUS_OFF_CONFIGURED="false"
-FOCUS_TIMEOUT_CONFIGURED="false"
+SHORTCUT_TRIGGERS_CONFIGURED="false"
+CAMERA_ACTIVE_SHORTCUT_CONFIGURED="false"
+CAMERA_INACTIVE_SHORTCUT_CONFIGURED="false"
+SHORTCUT_TIMEOUT_CONFIGURED="false"
 START_CONFIGURED="false"
 
 usage() {
@@ -40,10 +40,11 @@ Options:
   --webhook-url URL              Webhook URL for camera active transitions
   --webhook-url-sign-off URL     Webhook URL for camera inactive transitions
   --poll SECONDS                 Poll interval in seconds (default: 15)
-  --focus-sync                   Enable camera-to-Focus sync through Shortcuts
-  --focus-on-shortcut NAME       Shortcut for camera active; also enables Focus sync
-  --focus-off-shortcut NAME      Shortcut for camera inactive; also enables Focus sync
-  --focus-timeout SECONDS        Shortcut timeout in seconds (default: 20)
+  --shortcut-triggers            Run Shortcuts on camera activity transitions
+  --camera-active-shortcut NAME  Shortcut for camera active; enables shortcut triggers
+  --camera-inactive-shortcut NAME
+                                 Shortcut for camera inactive; enables shortcut triggers
+  --shortcut-timeout SECONDS     Shortcut timeout in seconds (default: 20)
   --skip-shortcut-check          Do not validate Shortcuts during install
   --start                        Start immediately after install (default)
   --no-start                     Install without starting now
@@ -111,29 +112,29 @@ while [[ $# -gt 0 ]]; do
             HAS_SETUP_OPTIONS="true"
             shift 2
             ;;
-        --focus-sync)
-            FOCUS_SYNC="true"
-            FOCUS_CONFIGURED="true"
+        --shortcut-triggers|--focus-sync)
+            SHORTCUT_TRIGGERS="true"
+            SHORTCUT_TRIGGERS_CONFIGURED="true"
             HAS_SETUP_OPTIONS="true"
             shift
             ;;
-        --focus-on-shortcut)
-            FOCUS_ON_SHORTCUT="$(require_value "$1" "${2:-}")"
-            FOCUS_SHORTCUT_CONFIGURED="true"
-            FOCUS_ON_CONFIGURED="true"
+        --camera-active-shortcut|--focus-on-shortcut)
+            CAMERA_ACTIVE_SHORTCUT="$(require_value "$1" "${2:-}")"
+            SHORTCUT_CONFIGURED="true"
+            CAMERA_ACTIVE_SHORTCUT_CONFIGURED="true"
             HAS_SETUP_OPTIONS="true"
             shift 2
             ;;
-        --focus-off-shortcut)
-            FOCUS_OFF_SHORTCUT="$(require_value "$1" "${2:-}")"
-            FOCUS_SHORTCUT_CONFIGURED="true"
-            FOCUS_OFF_CONFIGURED="true"
+        --camera-inactive-shortcut|--focus-off-shortcut)
+            CAMERA_INACTIVE_SHORTCUT="$(require_value "$1" "${2:-}")"
+            SHORTCUT_CONFIGURED="true"
+            CAMERA_INACTIVE_SHORTCUT_CONFIGURED="true"
             HAS_SETUP_OPTIONS="true"
             shift 2
             ;;
-        --focus-timeout)
-            FOCUS_TIMEOUT="$(require_value "$1" "${2:-}")"
-            FOCUS_TIMEOUT_CONFIGURED="true"
+        --shortcut-timeout|--focus-timeout)
+            SHORTCUT_TIMEOUT="$(require_value "$1" "${2:-}")"
+            SHORTCUT_TIMEOUT_CONFIGURED="true"
             HAS_SETUP_OPTIONS="true"
             shift 2
             ;;
@@ -166,9 +167,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "$FOCUS_SHORTCUT_CONFIGURED" == "true" ]]; then
-    FOCUS_SYNC="true"
-    FOCUS_CONFIGURED="true"
+if [[ "$SHORTCUT_CONFIGURED" == "true" ]]; then
+    SHORTCUT_TRIGGERS="true"
+    SHORTCUT_TRIGGERS_CONFIGURED="true"
 fi
 
 if [[ "$INTERACTIVE_MODE" == "auto" ]]; then
@@ -223,39 +224,39 @@ if [[ "$INTERACTIVE_MODE" == "true" ]]; then
         POLL_SECONDS="${response:-$POLL_SECONDS}"
     fi
 
-    if [[ "$FOCUS_ON_CONFIGURED" == "false" ]]; then
-        FOCUS_ON_SHORTCUT="$(config_value "FocusOnShortcut" "$FOCUS_ON_SHORTCUT")"
+    if [[ "$CAMERA_ACTIVE_SHORTCUT_CONFIGURED" == "false" ]]; then
+        CAMERA_ACTIVE_SHORTCUT="$(config_value "CameraActiveShortcut" "$(config_value "FocusOnShortcut" "$CAMERA_ACTIVE_SHORTCUT")")"
     fi
-    if [[ "$FOCUS_OFF_CONFIGURED" == "false" ]]; then
-        FOCUS_OFF_SHORTCUT="$(config_value "FocusOffShortcut" "$FOCUS_OFF_SHORTCUT")"
+    if [[ "$CAMERA_INACTIVE_SHORTCUT_CONFIGURED" == "false" ]]; then
+        CAMERA_INACTIVE_SHORTCUT="$(config_value "CameraInactiveShortcut" "$(config_value "FocusOffShortcut" "$CAMERA_INACTIVE_SHORTCUT")")"
     fi
-    if [[ "$FOCUS_TIMEOUT_CONFIGURED" == "false" ]]; then
-        FOCUS_TIMEOUT="$(config_value "FocusShortcutTimeoutSeconds" "$FOCUS_TIMEOUT")"
+    if [[ "$SHORTCUT_TIMEOUT_CONFIGURED" == "false" ]]; then
+        SHORTCUT_TIMEOUT="$(config_value "ShortcutTimeoutSeconds" "$(config_value "FocusShortcutTimeoutSeconds" "$SHORTCUT_TIMEOUT")")"
     fi
 
-    if [[ "$FOCUS_CONFIGURED" == "false" ]]; then
-        FOCUS_SYNC="$(config_value "FocusSyncEnabled" "$FOCUS_SYNC")"
-        if [[ "$FOCUS_SYNC" == "true" ]]; then
-            read -r -p "Sync macOS Focus with camera activity? [Y/n]: " response
-            [[ "${response:-y}" =~ ^[Nn]$ ]] && FOCUS_SYNC="false" || FOCUS_SYNC="true"
+    if [[ "$SHORTCUT_TRIGGERS_CONFIGURED" == "false" ]]; then
+        SHORTCUT_TRIGGERS="$(config_value "ShortcutTriggersEnabled" "$(config_value "FocusSyncEnabled" "$SHORTCUT_TRIGGERS")")"
+        if [[ "$SHORTCUT_TRIGGERS" == "true" ]]; then
+            read -r -p "Run Shortcuts when camera activity changes? [Y/n]: " response
+            [[ "${response:-y}" =~ ^[Nn]$ ]] && SHORTCUT_TRIGGERS="false" || SHORTCUT_TRIGGERS="true"
         else
-            read -r -p "Sync macOS Focus with camera activity? [y/N]: " response
-            [[ "${response:-n}" =~ ^[Yy]$ ]] && FOCUS_SYNC="true" || FOCUS_SYNC="false"
+            read -r -p "Run Shortcuts when camera activity changes? [y/N]: " response
+            [[ "${response:-n}" =~ ^[Yy]$ ]] && SHORTCUT_TRIGGERS="true" || SHORTCUT_TRIGGERS="false"
         fi
     fi
 
-    if [[ "$FOCUS_SYNC" == "true" ]]; then
-        if [[ "$FOCUS_ON_CONFIGURED" == "false" ]]; then
-            read -r -p "Shortcut to run when camera turns on [$FOCUS_ON_SHORTCUT]: " response
-            FOCUS_ON_SHORTCUT="${response:-$FOCUS_ON_SHORTCUT}"
+    if [[ "$SHORTCUT_TRIGGERS" == "true" ]]; then
+        if [[ "$CAMERA_ACTIVE_SHORTCUT_CONFIGURED" == "false" ]]; then
+            read -r -p "Shortcut to run when camera becomes active [$CAMERA_ACTIVE_SHORTCUT]: " response
+            CAMERA_ACTIVE_SHORTCUT="${response:-$CAMERA_ACTIVE_SHORTCUT}"
         fi
-        if [[ "$FOCUS_OFF_CONFIGURED" == "false" ]]; then
-            read -r -p "Shortcut to run when camera turns off [$FOCUS_OFF_SHORTCUT]: " response
-            FOCUS_OFF_SHORTCUT="${response:-$FOCUS_OFF_SHORTCUT}"
+        if [[ "$CAMERA_INACTIVE_SHORTCUT_CONFIGURED" == "false" ]]; then
+            read -r -p "Shortcut to run when camera becomes inactive [$CAMERA_INACTIVE_SHORTCUT]: " response
+            CAMERA_INACTIVE_SHORTCUT="${response:-$CAMERA_INACTIVE_SHORTCUT}"
         fi
-        if [[ "$FOCUS_TIMEOUT_CONFIGURED" == "false" ]]; then
-            read -r -p "Focus Shortcut timeout in seconds [$FOCUS_TIMEOUT]: " response
-            FOCUS_TIMEOUT="${response:-$FOCUS_TIMEOUT}"
+        if [[ "$SHORTCUT_TIMEOUT_CONFIGURED" == "false" ]]; then
+            read -r -p "Shortcut timeout in seconds [$SHORTCUT_TIMEOUT]: " response
+            SHORTCUT_TIMEOUT="${response:-$SHORTCUT_TIMEOUT}"
         fi
     fi
 
@@ -266,7 +267,7 @@ if [[ "$INTERACTIVE_MODE" == "true" ]]; then
     echo
 fi
 
-for value_name in POLL_SECONDS FOCUS_TIMEOUT; do
+for value_name in POLL_SECONDS SHORTCUT_TIMEOUT; do
     value="${!value_name}"
     if ! [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" -lt 1 ]]; then
         echo "$value_name must be a positive integer" >&2
@@ -292,7 +293,7 @@ if [[ ! -f "$SOURCE_FILE" ]]; then
     exit 1
 fi
 
-if [[ "$FOCUS_SYNC" == "true" && "$SKIP_SHORTCUT_CHECK" != "true" ]]; then
+if [[ "$SHORTCUT_TRIGGERS" == "true" && "$SKIP_SHORTCUT_CHECK" != "true" ]]; then
     if ! command -v shortcuts >/dev/null 2>&1; then
         echo "Cannot find the macOS shortcuts command." >&2
         exit 1
@@ -309,13 +310,13 @@ if [[ "$FOCUS_SYNC" == "true" && "$SKIP_SHORTCUT_CHECK" != "true" ]]; then
         ' <<<"$SHORTCUTS_LIST"
     }
 
-    if ! shortcut_exists "$FOCUS_ON_SHORTCUT"; then
-        echo "Focus on Shortcut not found: $FOCUS_ON_SHORTCUT" >&2
+    if ! shortcut_exists "$CAMERA_ACTIVE_SHORTCUT"; then
+        echo "Camera active Shortcut not found: $CAMERA_ACTIVE_SHORTCUT" >&2
         echo "Create it in Shortcuts or pass --skip-shortcut-check." >&2
         exit 1
     fi
-    if ! shortcut_exists "$FOCUS_OFF_SHORTCUT"; then
-        echo "Focus off Shortcut not found: $FOCUS_OFF_SHORTCUT" >&2
+    if ! shortcut_exists "$CAMERA_INACTIVE_SHORTCUT"; then
+        echo "Camera inactive Shortcut not found: $CAMERA_INACTIVE_SHORTCUT" >&2
         echo "Create it in Shortcuts or pass --skip-shortcut-check." >&2
         exit 1
     fi
@@ -328,7 +329,7 @@ xcrun swiftc "$SOURCE_FILE" -o "$WATCHER_BIN"
 chmod 755 "$WATCHER_BIN"
 
 echo "Writing configuration: $CONFIG_FILE"
-/usr/bin/python3 - "$CONFIG_FILE" "$WEBHOOK_URL_MODE" "$WEBHOOK_URL" "$WEBHOOK_URL_SIGN_OFF_MODE" "$WEBHOOK_URL_SIGN_OFF" "$POLL_SECONDS" "$FOCUS_SYNC" "$FOCUS_ON_SHORTCUT" "$FOCUS_OFF_SHORTCUT" "$FOCUS_TIMEOUT" <<'PY'
+/usr/bin/python3 - "$CONFIG_FILE" "$WEBHOOK_URL_MODE" "$WEBHOOK_URL" "$WEBHOOK_URL_SIGN_OFF_MODE" "$WEBHOOK_URL_SIGN_OFF" "$POLL_SECONDS" "$SHORTCUT_TRIGGERS" "$CAMERA_ACTIVE_SHORTCUT" "$CAMERA_INACTIVE_SHORTCUT" "$SHORTCUT_TIMEOUT" <<'PY'
 import json
 import os
 import sys
@@ -339,10 +340,10 @@ webhook_url = sys.argv[3]
 webhook_url_sign_off_mode = sys.argv[4]
 webhook_url_sign_off = sys.argv[5]
 poll_seconds = int(sys.argv[6])
-focus_sync = sys.argv[7].lower() == "true"
-focus_on = sys.argv[8]
-focus_off = sys.argv[9]
-focus_timeout = int(sys.argv[10])
+shortcut_triggers = sys.argv[7].lower() == "true"
+camera_active_shortcut = sys.argv[8]
+camera_inactive_shortcut = sys.argv[9]
+shortcut_timeout = int(sys.argv[10])
 
 config = {}
 if os.path.exists(config_path):
@@ -361,10 +362,12 @@ if webhook_url_sign_off_mode == "set":
 elif webhook_url_sign_off_mode == "clear":
     config.pop("WebhookUrlSignOff", None)
 config["PollIntervalSeconds"] = poll_seconds
-config["FocusSyncEnabled"] = focus_sync
-config["FocusOnShortcut"] = focus_on
-config["FocusOffShortcut"] = focus_off
-config["FocusShortcutTimeoutSeconds"] = focus_timeout
+config["ShortcutTriggersEnabled"] = shortcut_triggers
+config["CameraActiveShortcut"] = camera_active_shortcut
+config["CameraInactiveShortcut"] = camera_inactive_shortcut
+config["ShortcutTimeoutSeconds"] = shortcut_timeout
+for legacy_key in ("FocusSyncEnabled", "FocusOnShortcut", "FocusOffShortcut", "FocusShortcutTimeoutSeconds"):
+    config.pop(legacy_key, None)
 
 with open(config_path, "w", encoding="utf-8") as handle:
     json.dump(config, handle, indent=2)
