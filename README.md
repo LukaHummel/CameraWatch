@@ -46,7 +46,7 @@ xcode-select --install
 
 ### How It Works
 
-The macOS watcher uses AVFoundation to discover video devices and checks whether a camera is in use by another app. It polls every 15 seconds by default. On state changes, it sends direct webhooks to Home Assistant.
+The macOS watcher uses CoreMediaIO to enumerate camera devices and checks whether each device is running anywhere on the system. It polls every 15 seconds by default. On state changes, it sends direct webhooks to Home Assistant.
 
 Focus sync is optional. When enabled, CameraWatch runs one Shortcut when the camera becomes active and another Shortcut when the camera becomes inactive:
 
@@ -60,34 +60,32 @@ Direct webhooks are the primary path because camera activity remains the source 
 
 ### Installation
 
-Without Focus sync:
+For guided setup, run:
 
 ```bash
-./Install-CameraWatch-macOS.sh \
-  --webhook-url "https://your-homeassistant-url/api/webhook/on-id" \
-  --webhook-url-sign-off "https://your-homeassistant-url/api/webhook/off-id"
+./Install-CameraWatch-macOS.sh
 ```
 
-With Focus sync:
+The installer prompts for Home Assistant webhook URLs, poll interval, optional Focus sync and Shortcuts, and whether to start immediately. On reinstall, pressing Enter keeps existing settings; enter `-` at a webhook prompt to remove that URL. Guided setup requires an interactive terminal.
+
+For scripted or non-interactive installation without Focus sync:
 
 ```bash
 ./Install-CameraWatch-macOS.sh \
   --webhook-url "https://your-homeassistant-url/api/webhook/on-id" \
   --webhook-url-sign-off "https://your-homeassistant-url/api/webhook/off-id" \
-  --focus-sync \
-  --focus-on-shortcut "CameraWatch Focus On" \
-  --focus-off-shortcut "CameraWatch Focus Off"
+  --non-interactive
 ```
 
-To use existing Shortcuts, pass their names or identifiers:
+For scripted installation with existing Focus Shortcuts, pass their names or identifiers:
 
 ```bash
 ./Install-CameraWatch-macOS.sh \
   --webhook-url "https://your-homeassistant-url/api/webhook/on-id" \
   --webhook-url-sign-off "https://your-homeassistant-url/api/webhook/off-id" \
-  --focus-sync \
   --focus-on-shortcut "FocusOn" \
-  --focus-off-shortcut "FocusOff"
+  --focus-off-shortcut "FocusOff" \
+  --non-interactive
 ```
 
 The installer compiles the Swift watcher, writes configuration, creates a LaunchAgent, and starts CameraWatch immediately by default.
@@ -99,7 +97,11 @@ Create two Shortcuts in the Shortcuts app:
 - `CameraWatch Focus On`: use the "Set Focus" action to turn your chosen Focus on until turned off.
 - `CameraWatch Focus Off`: use the "Set Focus" action to turn the same Focus off.
 
-When `--focus-sync` is enabled, the installer validates that both Shortcuts exist. Use `--skip-shortcut-check` if you want to install first and create the Shortcuts later.
+When Focus sync is enabled, the installer validates that both Shortcuts exist. Use `--skip-shortcut-check` if you want to install first and create the Shortcuts later.
+
+Passing either `--focus-on-shortcut` or `--focus-off-shortcut` also enables Focus sync automatically.
+
+Use `--interactive` together with selected options to prompt only for remaining settings, or `--non-interactive` to suppress prompts when running from automation.
 
 ### macOS Configuration
 
@@ -311,7 +313,7 @@ Also remove configuration and logs:
 ### Camera not detected
 
 - On Windows, confirm the webcam uses the standard Windows camera APIs.
-- On macOS, confirm the app is using an AVFoundation-visible camera device.
+- On macOS, confirm the camera is exposed through CoreMediaIO.
 
 ## License
 

@@ -1,4 +1,4 @@
-import AVFoundation
+import CoreMediaIO
 import Dispatch
 import Foundation
 
@@ -200,24 +200,74 @@ func redactedUrl(_ url: String) -> String {
     return components?.string ?? "(redacted)"
 }
 
-func activeCameraNames() -> [String] {
-    var deviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
-    if #available(macOS 14.0, *) {
-        deviceTypes.append(.external)
-        deviceTypes.append(.continuityCamera)
-    } else {
-        deviceTypes.append(.externalUnknown)
+func propertyAddress(_ selector: CMIOObjectPropertySelector) -> CMIOObjectPropertyAddress {
+    return CMIOObjectPropertyAddress(
+        mSelector: selector,
+        mScope: UInt32(kCMIOObjectPropertyScopeGlobal),
+        mElement: UInt32(kCMIOObjectPropertyElementMain)
+    )
+}
+
+func cameraDevices() -> [CMIODeviceID] {
+    var address = propertyAddress(UInt32(kCMIOHardwarePropertyDevices))
+    var size: UInt32 = 0
+    guard CMIOObjectGetPropertyDataSize(
+        CMIOObjectID(kCMIOObjectSystemObject),
+        &address,
+        0,
+        nil,
+        &size
+    ) == noErr else {
+        return []
     }
 
-    let session = AVCaptureDevice.DiscoverySession(
-        deviceTypes: deviceTypes,
-        mediaType: .video,
-        position: .unspecified
-    )
+    let count = Int(size) / MemoryLayout<CMIODeviceID>.size
+    guard count > 0 else {
+        return []
+    }
 
-    return session.devices
-        .filter { $0.isConnected && !$0.isSuspended && $0.isInUseByAnotherApplication }
-        .map { $0.localizedName }
+    var devices = [CMIODeviceID](repeating: 0, count: count)
+    var used: UInt32 = 0
+    guard CMIOObjectGetPropertyData(
+        CMIOObjectID(kCMIOObjectSystemObject),
+        &address,
+        0,
+        nil,
+        size,
+        &used,
+        &devices
+    ) == noErr else {
+        return []
+    }
+
+    return devices
+}
+
+func cameraName(_ device: CMIODeviceID) -> String {
+    var address = propertyAddress(UInt32(kCMIOObjectPropertyName))
+    let size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+    var used: UInt32 = 0
+    var name: Unmanaged<CFString>?
+    let status = CMIOObjectGetPropertyData(device, &address, 0, nil, size, &used, &name)
+    guard status == noErr, let name else {
+        return "Camera \(device)"
+    }
+    return name.takeRetainedValue() as String
+}
+
+func isCameraRunning(_ device: CMIODeviceID) -> Bool {
+    var address = propertyAddress(UInt32(kCMIODevicePropertyDeviceIsRunningSomewhere))
+    let size = UInt32(MemoryLayout<UInt32>.size)
+    var used: UInt32 = 0
+    var isRunning: UInt32 = 0
+    let status = CMIOObjectGetPropertyData(device, &address, 0, nil, size, &used, &isRunning)
+    return status == noErr && isRunning != 0
+}
+
+func activeCameraNames() -> [String] {
+    return cameraDevices()
+        .filter(isCameraRunning)
+        .map(cameraName)
         .sorted()
 }
 
