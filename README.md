@@ -35,8 +35,10 @@ Camera inactive:
 
 On Windows, `processes` contains active webcam registry entries. On macOS, supported public APIs expose camera device usage, not owning app processes, so `processes` contains comma-separated active camera device names such as `MacBook Pro Camera`.
 
-## macOS
 <details>
+
+<summary>## macOS</summary>
+
 ### Requirements
 
 - macOS 12 or later
@@ -190,9 +192,13 @@ Also remove configuration and logs:
 ```bash
 ./macos/Uninstall-CameraWatch.sh --remove-config
 ```
+
 </details>
-## Windows
+
 <details>
+
+<summary>## Windows</summary>
+
 ### Requirements
 
 - Windows 10 or later
