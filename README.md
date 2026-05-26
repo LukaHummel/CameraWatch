@@ -59,13 +59,13 @@ The macOS watcher uses CoreMediaIO to enumerate camera devices and checks whethe
 
 Shortcut triggers are optional. When enabled, CameraWatch runs one Shortcut when the camera becomes active and another when the camera becomes inactive. Those Shortcuts can perform any automation, such as turning a macOS Focus mode on and off:
 
-```text
-Camera activity -> Swift watcher -> Home Assistant webhook
-                          |
-                          -> optional Shortcut triggers
+```mermaid
+flowchart LR
+    A{ shape: event, label: "Camera activity" } -->B(Swift watcher)
+    B -. optional.-> C(Shortcut triggers)
+    B --> D(Webhooks)
 ```
 
-Direct webhooks are the primary path because camera activity remains the source of truth. Shortcuts are side effects, not intermediate triggers.
 
 ### Installation
 
