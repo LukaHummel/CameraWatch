@@ -61,7 +61,7 @@ Shortcut triggers are optional. When enabled, CameraWatch runs one Shortcut when
 
 ```mermaid
 flowchart LR
-    A(Camera activity) -->B[Swift watcher]
+    A((Camera activity)) -->B[Swift watcher]
     B -. optional.-> C(Shortcut triggers)
     B --> D(Webhooks)
 ```
