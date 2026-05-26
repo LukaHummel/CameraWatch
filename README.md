@@ -4,9 +4,14 @@ CameraWatch monitors webcam activity and sends webhook notifications when the ca
 
 The repository includes:
 
-- Windows support through PowerShell and Task Scheduler
-- macOS support through a Swift watcher and a per-user LaunchAgent
+- Windows support in `windows/` through PowerShell and Task Scheduler
+- macOS support in `macos/` through a Swift watcher and a per-user LaunchAgent
 - Optional macOS Focus mode sync through Shortcuts
+
+## Repository Layout
+
+- `macos/` contains the macOS watcher, installer, and uninstaller.
+- `windows/` contains the Windows watcher, installer, uninstaller, and background launcher.
 
 ## Webhook Payload
 
@@ -63,7 +68,7 @@ Direct webhooks are the primary path because camera activity remains the source 
 For guided setup, run:
 
 ```bash
-./Install-CameraWatch-macOS.sh
+./macos/Install-CameraWatch.sh
 ```
 
 The installer prompts for Home Assistant webhook URLs, poll interval, optional Focus sync and Shortcuts, and whether to start immediately. On reinstall, pressing Enter keeps existing settings; enter `-` at a webhook prompt to remove that URL. Guided setup requires an interactive terminal.
@@ -71,7 +76,7 @@ The installer prompts for Home Assistant webhook URLs, poll interval, optional F
 For scripted or non-interactive installation without Focus sync:
 
 ```bash
-./Install-CameraWatch-macOS.sh \
+./macos/Install-CameraWatch.sh \
   --webhook-url "https://your-homeassistant-url/api/webhook/on-id" \
   --webhook-url-sign-off "https://your-homeassistant-url/api/webhook/off-id" \
   --non-interactive
@@ -80,7 +85,7 @@ For scripted or non-interactive installation without Focus sync:
 For scripted installation with existing Focus Shortcuts, pass their names or identifiers:
 
 ```bash
-./Install-CameraWatch-macOS.sh \
+./macos/Install-CameraWatch.sh \
   --webhook-url "https://your-homeassistant-url/api/webhook/on-id" \
   --webhook-url-sign-off "https://your-homeassistant-url/api/webhook/off-id" \
   --focus-on-shortcut "FocusOn" \
@@ -177,13 +182,13 @@ Test webhooks or Focus sync:
 Remove the LaunchAgent and installed watcher binary:
 
 ```bash
-./Uninstall-CameraWatch-macOS.sh
+./macos/Uninstall-CameraWatch.sh
 ```
 
 Also remove configuration and logs:
 
 ```bash
-./Uninstall-CameraWatch-macOS.sh --remove-config
+./macos/Uninstall-CameraWatch.sh --remove-config
 ```
 
 ## Windows
@@ -209,13 +214,13 @@ It polls this registry location every 15 seconds. When a state change is detecte
 Open PowerShell, navigate to the repository, and run:
 
 ```powershell
-.\Install-CameraWatch.ps1
+.\windows\Install-CameraWatch.ps1
 ```
 
 With webhook URLs:
 
 ```powershell
-.\Install-CameraWatch.ps1 `
+.\windows\Install-CameraWatch.ps1 `
   -WebhookUrl "https://your-homeassistant-url/api/webhook/on-id" `
   -WebhookUrlSignOff "https://your-homeassistant-url/api/webhook/off-id"
 ```
@@ -274,13 +279,13 @@ Get-Content "$env:LOCALAPPDATA\CameraWatch\CameraWatch.log" -Tail 50
 ### Windows Uninstallation
 
 ```powershell
-.\Uninstall-CameraWatch.ps1
+.\windows\Uninstall-CameraWatch.ps1
 ```
 
 Also remove configuration and logs:
 
 ```powershell
-.\Uninstall-CameraWatch.ps1 -RemoveConfig
+.\windows\Uninstall-CameraWatch.ps1 -RemoveConfig
 ```
 
 ## Home Assistant Integration

@@ -3,7 +3,7 @@ Set objFSO = CreateObject("Scripting.FileSystemObject")
 
 ' Get the directory where this script is located
 scriptDir = objFSO.GetParentFolderName(WScript.ScriptFullName)
-psScript = scriptDir & "\Camerawatch.ps1"
+psScript = scriptDir & "\CameraWatch.ps1"
 
 ' Run PowerShell completely hidden (window style 0 = hidden)
 ' Third parameter True = wait for the process to complete

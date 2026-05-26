@@ -10,7 +10,7 @@ REMOVE_CONFIG="false"
 
 usage() {
     cat <<EOF
-Usage: ./Uninstall-CameraWatch-macOS.sh [options]
+Usage: ./macos/Uninstall-CameraWatch.sh [options]
 
 Options:
   --remove-config    Also remove configuration and log files

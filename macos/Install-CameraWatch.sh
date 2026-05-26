@@ -32,7 +32,7 @@ START_CONFIGURED="false"
 
 usage() {
     cat <<EOF
-Usage: ./Install-CameraWatch-macOS.sh [options]
+Usage: ./macos/Install-CameraWatch.sh [options]
 
 Options:
   --interactive                  Run guided setup for options not already supplied
@@ -286,9 +286,9 @@ if ! command -v xcrun >/dev/null 2>&1 || ! xcrun --find swiftc >/dev/null 2>&1; 
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_FILE="$SCRIPT_DIR/macos/CameraWatch.swift"
+SOURCE_FILE="$SCRIPT_DIR/CameraWatch.swift"
 if [[ ! -f "$SOURCE_FILE" ]]; then
-    echo "Cannot find macos/CameraWatch.swift next to the installer." >&2
+    echo "Cannot find macos/CameraWatch.swift." >&2
     exit 1
 fi
 

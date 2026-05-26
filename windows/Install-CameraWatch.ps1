@@ -11,7 +11,7 @@
     The webhook URL to send notifications to (e.g., Home Assistant webhook)
 
 .EXAMPLE
-    .\Install-CameraWatch.ps1 -WebhookUrl "https://your-homeassistant-url/api/webhook/your-webhook-id"
+    .\windows\Install-CameraWatch.ps1 -WebhookUrl "https://your-homeassistant-url/api/webhook/your-webhook-id"
 #>
 
 param(
@@ -33,12 +33,12 @@ if (-not $isAdmin) {
 
 # Get the directory where this script is located
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$MainScriptPath = Join-Path $ScriptDir "Camerawatch.ps1"
+$MainScriptPath = Join-Path $ScriptDir "CameraWatch.ps1"
 $VBSLauncherPath = Join-Path $ScriptDir "Start-CameraWatch.vbs"
 
 # Verify the main script exists
 if (-not (Test-Path $MainScriptPath)) {
-    Write-Error "Cannot find Camerawatch.ps1 in $ScriptDir"
+    Write-Error "Cannot find CameraWatch.ps1 in $ScriptDir"
     exit 1
 }
 
@@ -127,7 +127,7 @@ try {
     Write-Host "`nTo check task status, run:" -ForegroundColor Cyan
     Write-Host "  Get-ScheduledTask -TaskName '$TaskName' -TaskPath '$TaskPath' | Get-ScheduledTaskInfo" -ForegroundColor White
     Write-Host "`nTo uninstall, run:" -ForegroundColor Cyan
-    Write-Host "  .\Uninstall-CameraWatch.ps1" -ForegroundColor White
+    Write-Host "  .\windows\Uninstall-CameraWatch.ps1" -ForegroundColor White
     
     # Prompt to start now
     $response = Read-Host "`nDo you want to start CameraWatch now? (Y/N)"

@@ -10,10 +10,10 @@
     If specified, also removes the configuration directory and log files.
 
 .EXAMPLE
-    .\Uninstall-CameraWatch.ps1
+    .\windows\Uninstall-CameraWatch.ps1
     
 .EXAMPLE
-    .\Uninstall-CameraWatch.ps1 -RemoveConfig
+    .\windows\Uninstall-CameraWatch.ps1 -RemoveConfig
 #>
 
 param(
