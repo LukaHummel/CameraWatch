@@ -35,9 +35,11 @@ Camera inactive:
 
 On Windows, `processes` contains active webcam registry entries. On macOS, supported public APIs expose camera device usage, not owning app processes, so `processes` contains comma-separated active camera device names such as `MacBook Pro Camera`.
 
+## macOS
+
 <details>
 
-<summary>## macOS</summary>
+<summary>Expand</summary>
 
 ### Requirements
 
@@ -195,9 +197,11 @@ Also remove configuration and logs:
 
 </details>
 
+## Windows
+
 <details>
 
-<summary>## Windows</summary>
+<summary>Expand</summary>
 
 ### Requirements
 
@@ -294,6 +298,7 @@ Also remove configuration and logs:
 .\windows\Uninstall-CameraWatch.ps1 -RemoveConfig
 ```
 </details>
+
 ## Home Assistant Integration
 
 1. Create one webhook trigger for camera active and one webhook trigger for camera inactive.
