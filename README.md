@@ -330,7 +330,3 @@ Also remove configuration and logs:
 
 - On Windows, confirm the webcam uses the standard Windows camera APIs.
 - On macOS, confirm the camera is exposed through CoreMediaIO.
-
-## License
-
-This project is open source. Feel free to use and modify as needed.
